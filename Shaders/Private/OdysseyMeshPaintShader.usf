@@ -1,0 +1,100 @@
+#include "/Engine/Private/common.ush"
+
+Texture2D s_Stroke2D;
+SamplerState s_TextureSampler;
+
+float4x4 c_WorldToBrushMatrix;
+float2 c_TextureHitPoint;
+
+void MainPS( float4 InPosition : SV_POSITION,
+		   float2 InCloneTextureCoordinates : TEXCOORD0,
+		   float3 InWorldSpaceVertexPosition : TEXCOORD1,
+		   out float4 OutColor : SV_Target0)
+{
+    //InPosition.xy is in texture coordinates (0...1024)
+    //InCloneTextureCoordinates is in UV coordinates (0...1)
+    
+	float4x4 WorldToBrushMatrix = c_WorldToBrushMatrix;
+
+	// Project the pixel into the plane of the brush
+	float3 WorldSpaceVertexPosition = InWorldSpaceVertexPosition;
+	float3 BrushSpaceVertexPosition = mul(float4( WorldSpaceVertexPosition, 1.0f ), WorldToBrushMatrix).xyz;
+	float2 BrushSpaceVertexPosition2D = BrushSpaceVertexPosition.xy / 1024;
+        
+    float4 NewColor = Texture2DSample(s_Stroke2D, s_TextureSampler, InCloneTextureCoordinates);
+    OutColor = NewColor;
+    
+    /*
+   	// Start by using the old color
+	float4 NewColor = OldColor;
+    
+    // Is the brush close enough to the vertex to paint?
+ 	float DistanceToVertex2D = length( BrushSpaceVertexPosition2D );
+ 	if( DistanceToVertex2D <= 10 )
+	{
+		// OK the vertex is overlapping the brush in 2D space, but is it too close or
+		// two far (depth wise) to be influenced?
+ 		float VertexDepthToBrush = abs( BrushSpaceVertexPosition.z );
+ 		if( VertexDepthToBrush <= 10 )
+		{
+			// Compute amount of paint to apply
+			float PaintAmount = 1.0f;
+
+			// Apply radial-based falloff
+			{
+				// Compute the actual distance
+				float InnerBrushRadius = 10 - 5;
+				if( DistanceToVertex2D > InnerBrushRadius )
+				{
+					float RadialBasedFalloff = ( DistanceToVertex2D - InnerBrushRadius ) / 5;
+					PaintAmount *= 1.0f - RadialBasedFalloff;
+				}
+			}
+
+			// Apply depth-based falloff
+			{
+				float InnerBrushDepth = 10 - 5;
+				if( VertexDepthToBrush > InnerBrushDepth )
+				{
+					float DepthBasedFalloff = ( VertexDepthToBrush - InnerBrushDepth ) / 5;
+					PaintAmount *= 1.0f - DepthBasedFalloff;
+				}
+			}
+
+			PaintAmount *= 1;
+
+			float4 BrushColor = c_BrushColor;
+
+			NewColor.a = lerp(OldColor.a, BrushColor.a, PaintAmount);
+			NewColor.r = lerp(OldColor.r * OldColor.a, BrushColor.r * BrushColor.a, PaintAmount);
+			NewColor.g = lerp(OldColor.g * OldColor.a, BrushColor.g * BrushColor.a, PaintAmount);
+			NewColor.b = lerp(OldColor.b * OldColor.a, BrushColor.b * BrushColor.a, PaintAmount);
+			if (NewColor.a > 0.0f)
+			{
+				NewColor.rgb /= NewColor.a;
+			}
+		}
+	}
+    
+	OutColor = NewColor;*/
+}
+
+
+float4x4 c_Transform;
+
+void MainVS( float4 InPosition : ATTRIBUTE0,
+		   float2 InCloneTextureCoordinates : ATTRIBUTE1,
+		   float3 InWorldSpaceVertexPosition : ATTRIBUTE2,
+		   out float4 OutPosition : SV_POSITION,
+		   out float2 OutCloneTextureCoordinates: TEXCOORD0,
+		   out float3 OutWorldSpaceVertexPosition : TEXCOORD1 )
+{
+	// Position (on texture map, derived from the UVs of the original mesh)
+	OutPosition = mul( InPosition, c_Transform );
+
+	// Pass clone texture coordinates through to the pixel shader
+	OutCloneTextureCoordinates = InCloneTextureCoordinates;
+
+	// Position of this vertex in world space (original mesh)
+	OutWorldSpaceVertexPosition = InWorldSpaceVertexPosition;
+}
